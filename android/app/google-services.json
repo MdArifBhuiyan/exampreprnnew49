@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "669274248827",
+    "project_id": "examprep-3e49d",
+    "storage_bucket": "examprep-3e49d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:669274248827:android:b28fc4928bcafef58f74de",
+        "android_client_info": {
+          "package_name": "com.anonymous.ExamPrepRNNew"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA1qoP2Wh02WB7Mv5G0Gn-8kQMRkA1D6Yc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "ExamPrepRNNew",
+    "slug": "ExamPrepRNNew",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.anonymous.ExamPrepRNNew",
+      "googleServicesFile": "./android/app/google-services.json"
+    },
+    "plugins": [
+      "@react-native-firebase/app"
+    ],
+    "newArchEnabled": true,
+    "scheme": "exampreprnnew"
+  }
+}

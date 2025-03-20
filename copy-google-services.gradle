@@ -1,0 +1,8 @@
+task copyGoogleServices(type: Copy) {
+    from rootProject.file("google-services.json")
+    into project.file("app")
+}
+
+afterEvaluate {
+    preBuild.dependsOn copyGoogleServices
+}

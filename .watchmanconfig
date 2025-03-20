@@ -1,0 +1,8 @@
+{
+  "ignore_dirs": [
+    "AppData/Local/ElevatedDiagnostics",
+    "AppData/Local/Steam",
+    "AppData/Local/Google/AndroidStudio2024.3"
+  ],
+  "ignore_files": [".port"]
+}

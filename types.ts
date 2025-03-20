@@ -1,11 +1,16 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 
-export type RootStackParamList = {
+// Define the param list for the Tab Navigator
+export type RootTabParamList = {
   Login: undefined;
-  Summarize: undefined;
   Chat: undefined;
+  Quiz: { newQuestion?: string };
+  Summarize: undefined;
+  Groups: undefined;
+  Upload: undefined;
+  History: undefined;
+  Profile: undefined;
 };
 
-export type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
-export type SummarizeScreenProps = NativeStackScreenProps<RootStackParamList, 'Summarize'>;
-export type ChatScreenProps = NativeStackScreenProps<RootStackParamList, 'Chat'>;
+// Update SummarizeScreenProps to use BottomTabScreenProps
+export type SummarizeScreenProps = BottomTabScreenProps<RootTabParamList, 'Summarize'>;

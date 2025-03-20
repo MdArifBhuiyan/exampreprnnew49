@@ -11,9 +11,18 @@ if (Platform.OS === 'web') {
 import React, { useState, useEffect } from 'react';
 import { Text, View, Image, TouchableOpacity, TextInput, FlatList, Switch } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator, BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import NetInfo from '@react-native-community/netinfo';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+// Import screens from components/
+import ChatScreen from './components/ChatScreen';
+import LoginScreen from './components/LoginScreen';
+import QuizeScreen from './components/QuizeScreen';
+import SummarizeScreen from './components/SummarizeScreen';
+
+// Import the RootTabParamList
+import { RootTabParamList } from './types';
 
 // Placeholder logo
 const Logo = () => (
@@ -49,7 +58,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
 }
 
 // Tab Screens
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<RootTabParamList>();
 
 const ProfileScreen = () => (
   <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
@@ -130,7 +139,7 @@ const GroupsScreen = () => {
   );
 };
 
-const UploadScreen = ({ navigation }: BottomTabScreenProps<any, 'Upload'>) => {
+const UploadScreen = () => {
   const [scannedText, setScannedText] = useState('');
 
   const simulateScan = () => {
@@ -139,7 +148,8 @@ const UploadScreen = ({ navigation }: BottomTabScreenProps<any, 'Upload'>) => {
 
   const addToQuiz = () => {
     if (scannedText) {
-      navigation.navigate('Quiz', { newQuestion: scannedText });
+      // navigation.navigate('Quiz', { newQuestion: scannedText });
+      console.log('Navigating to Quiz with new question:', scannedText);
     }
   };
 
@@ -159,98 +169,6 @@ const UploadScreen = ({ navigation }: BottomTabScreenProps<any, 'Upload'>) => {
       ) : (
         <Text style={{ color: '#fff' }}>No content scanned yet.</Text>
       )}
-    </View>
-  );
-};
-
-const ChatScreen = ({ navigation }: BottomTabScreenProps<any, 'Chat'>) => {
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<{ id: string; text: string; sender: string }[]>([]);
-
-  const sendMessage = () => {
-    if (message) {
-      setMessages([...messages, { id: Date.now().toString(), text: message, sender: 'user' }]);
-      setMessage('');
-    }
-  };
-
-  return (
-    <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
-      <Text style={{ color: '#fff', fontSize: 20, marginBottom: 10 }}>Chat</Text>
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={{ padding: 10, alignSelf: item.sender === 'user' ? 'flex-end' : 'flex-start' }}>
-            <Text style={{ color: '#fff', backgroundColor: item.sender === 'user' ? '#00f' : '#555', padding: 5 }}>
-              {item.text}
-            </Text>
-          </View>
-        )}
-      />
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-        <TextInput
-          value={message}
-          onChangeText={setMessage}
-          placeholder="Type a message..."
-          placeholderTextColor="#888"
-          style={{ flex: 1, backgroundColor: '#333', color: '#fff', padding: 10, marginRight: 10 }}
-        />
-        <TouchableOpacity onPress={() => navigation.navigate('Quiz')}>
-          <Text style={{ color: '#fff', backgroundColor: '#00f', padding: 10 }}>Quiz</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={sendMessage}>
-          <Text style={{ color: '#fff', backgroundColor: '#00f', padding: 10, marginLeft: 10 }}>➡️</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
-
-const QuizScreen = ({ route }: BottomTabScreenProps<any, 'Quiz'>) => {
-  const [answers, setAnswers] = useState<{ [key: number]: string }>({});
-  const [questions, setQuestions] = useState([
-    { id: 1, text: 'What is 2 + 2?', options: ['3', '4', '5'], correct: '4' },
-    { id: 2, text: 'Capital of France?', options: ['London', 'Paris', 'Berlin'], correct: 'Paris' },
-  ]);
-
-  useEffect(() => {
-    if (route.params?.newQuestion) {
-      setQuestions([
-        ...questions,
-        { id: questions.length + 1, text: route.params.newQuestion, options: ['Paris', 'London', 'Berlin'], correct: 'Paris' },
-      ]);
-    }
-  }, [route.params?.newQuestion]);
-
-  const handleAnswer = (questionId: number, selected: string) => {
-    setAnswers({ ...answers, [questionId]: selected });
-  };
-
-  return (
-    <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
-      <Text style={{ color: '#fff', fontSize: 20, marginBottom: 10 }}>Quiz</Text>
-      {questions.map((q) => (
-        <View key={q.id} style={{ marginVertical: 10 }}>
-          <Text style={{ color: '#fff' }}>{q.text}</Text>
-          {q.options.map((option) => (
-            <TouchableOpacity
-              key={option}
-              onPress={() => handleAnswer(q.id, option)}
-              style={{
-                padding: 10,
-                backgroundColor: answers[q.id] === option ? (option === q.correct ? '#0f0' : '#f00') : '#333',
-                marginVertical: 5,
-              }}
-            >
-              <Text style={{ color: '#fff' }}>{option}</Text>
-            </TouchableOpacity>
-          ))}
-          <Text style={{ color: '#fff' }}>
-            Status: {answers[q.id] ? (answers[q.id] === q.correct ? 'Correct' : 'Incorrect') : 'Not answered'}
-          </Text>
-        </View>
-      ))}
     </View>
   );
 };
@@ -300,10 +218,31 @@ const App = () => {
               }}
             >
               <Tab.Screen
+                name="Login"
+                component={LoginScreen}
+                options={{
+                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>🔑</Text>,
+                }}
+              />
+              <Tab.Screen
                 name="Chat"
                 component={ChatScreen}
                 options={{
                   tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>💬</Text>,
+                }}
+              />
+              <Tab.Screen
+                name="Quiz"
+                component={QuizeScreen}
+                options={{
+                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>❓</Text>,
+                }}
+              />
+              <Tab.Screen
+                name="Summarize"
+                component={SummarizeScreen}
+                options={{
+                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📝</Text>,
                 }}
               />
               <Tab.Screen
@@ -332,13 +271,6 @@ const App = () => {
                 component={ProfileScreen}
                 options={{
                   tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>👤</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="Quiz"
-                component={QuizScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>❓</Text>,
                 }}
               />
             </Tab.Navigator>

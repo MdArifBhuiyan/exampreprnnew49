@@ -1,26 +1,33 @@
 {
   "expo": {
     "name": "ExamPrepRNNew",
-    "slug": "ExamPrepRNNew",
+    "slug": "exam-prep-rn-new",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#121212"
+    },
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true
     },
     "android": {
-      "package": "com.anonymous.ExamPrepRNNew",
-      "googleServicesFile": "./android/app/google-services.json"
+      "package": "com.examprnnew.app",
+      "googleServicesFile": "./google-services.json"
     },
-    "plugins": [
-      "@react-native-firebase/app"
-    ],
-    "newArchEnabled": true,
-    "scheme": "exampreprnnew"
+    "web": {},
+    "extra": {
+      "API_KEY": "AIzaSyA1qoP2Wh02WB7Mv5G0Gn-8kQMRkA1D6Yc",
+      "AUTH_DOMAIN": "examprep-3e49d.firebaseapp.com",
+      "PROJECT_ID": "examprep-3e49d",
+      "STORAGE_BUCKET": "examprep-3e49d.firebasestorage.app",
+      "MESSAGING_SENDER_ID": "669274248827",
+      "APP_ID": "1:669274248827:android:b28fc4928bcafef58f74de"
+    }
   }
 }

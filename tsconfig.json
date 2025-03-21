@@ -1,32 +1,22 @@
+// tsconfig.json
 {
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "target": "esnext",
     "module": "esnext",
-    "lib": [
-      "esnext"
-    ],
-    "allowJs": true,
     "jsx": "react-native",
-    "noEmit": true,
-    "isolatedModules": true,
     "strict": true,
-    "moduleResolution": "node",
-    "skipLibCheck": true,
-    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "types": ["react", "react-native"],
+    "baseUrl": ".",
+    "paths": {
+      "*": ["./*"]
+    }
   },
-  "include": [
-    "firebaseConfig.ts",
-    "App.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "android",
-    "ios",
-    "babel.config.js",
-    "metro.config.js"
-  ],
-  "extends": "expo/tsconfig.base"
+  "include": ["**/*.ts", "**/*.tsx", "env.d.ts"],
+  "exclude": ["node_modules", "babel.config.js", "metro.config.js", "jest.config.js"]
 }

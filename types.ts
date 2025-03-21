@@ -1,6 +1,7 @@
-import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+// types.ts
+import { RouteProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs'; // Use BottomTabNavigationProp
 
-// Define the param list for the Tab Navigator
 export type RootTabParamList = {
   Login: undefined;
   Chat: undefined;
@@ -10,7 +11,19 @@ export type RootTabParamList = {
   Upload: undefined;
   History: undefined;
   Profile: undefined;
+  Payment: undefined;
+  GroupChat: undefined;
+  PersonalChat: undefined;
+  Scan: undefined;
 };
 
-// Update SummarizeScreenProps to use BottomTabScreenProps
-export type SummarizeScreenProps = BottomTabScreenProps<RootTabParamList, 'Summarize'>;
+// Define QuizScreenProps
+export type QuizScreenProps = {
+  navigation: BottomTabNavigationProp<RootTabParamList, 'Quiz'>;
+  route: RouteProp<RootTabParamList, 'Quiz'>;
+};
+
+// Define SummarizeScreenProps
+export type SummarizeScreenProps = {
+  navigation: BottomTabNavigationProp<RootTabParamList, 'Summarize'>;
+};

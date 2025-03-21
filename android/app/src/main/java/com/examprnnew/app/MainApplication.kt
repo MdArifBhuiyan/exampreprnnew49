@@ -1,4 +1,4 @@
-package com.anonymous.ExamPrepRNNew
+package com.examprnnew.app
 
 import android.app.Application
 import android.content.res.Configuration

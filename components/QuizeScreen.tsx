@@ -1,10 +1,8 @@
+// QuizScreen.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
 import { fetchMCQs, saveScoreToLeaderboard, fetchLeaderboard } from '../Database';
-import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { RootTabParamList } from '../types';
-
-type QuizeScreenProps = BottomTabScreenProps<RootTabParamList, 'Quiz'>;
+import { QuizScreenProps } from '../types';
 
 type MCQ = {
   id: string;
@@ -19,7 +17,7 @@ type LeaderboardEntry = {
   score: number;
 };
 
-const QuizeScreen: React.FC<QuizeScreenProps> = ({ route }) => {
+const QuizScreen: React.FC<QuizScreenProps> = ({ route }) => {
   const [mcqs, setMCQs] = useState<MCQ[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -349,4 +347,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default QuizeScreen;
+export default QuizScreen;

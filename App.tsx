@@ -1,28 +1,67 @@
-// Load environment variables at the top
-import { Platform } from 'react-native';
+// App.tsx
+import Constants from 'expo-constants';
 
-if (Platform.OS === 'web') {
-  require('dotenv').config();
-} else {
-  import('dotenv').then((dotenv) => dotenv.config());
-}
+// Access environment variables
+const API_KEY = Constants.expoConfig?.extra?.API_KEY;
+const AUTH_DOMAIN = Constants.expoConfig?.extra?.AUTH_DOMAIN;
+const PROJECT_ID = Constants.expoConfig?.extra?.PROJECT_ID;
+const STORAGE_BUCKET = Constants.expoConfig?.extra?.STORAGE_BUCKET;
+const MESSAGING_SENDER_ID = Constants.expoConfig?.extra?.MESSAGING_SENDER_ID;
+const APP_ID = Constants.expoConfig?.extra?.APP_ID;
+
+// Log to verify
+console.log('API_KEY:', API_KEY);
+console.log('AUTH_DOMAIN:', AUTH_DOMAIN);
+console.log('PROJECT_ID:', PROJECT_ID);
+console.log('STORAGE_BUCKET:', STORAGE_BUCKET);
+console.log('MESSAGING_SENDER_ID:', MESSAGING_SENDER_ID);
+console.log('APP_ID:', APP_ID);
 
 // Core components and navigation
 import React, { useState, useEffect } from 'react';
-import { Text, View, Image, TouchableOpacity, TextInput, FlatList, Switch } from 'react-native';
+import { Text, View, Image, TouchableOpacity, TextInput, FlatList, Switch, Alert, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import NetInfo from '@react-native-community/netinfo';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Camera, CameraType } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
+import firebase from '@react-native-firebase/app';
+import firestore from '@react-native-firebase/firestore';
+import messaging from '@react-native-firebase/messaging';
 
 // Import screens from components/
 import ChatScreen from './components/ChatScreen';
 import LoginScreen from './components/LoginScreen';
-import QuizeScreen from './components/QuizeScreen';
-import SummarizeScreen from './components/SummarizeScreen';
+import QuizScreen from './components/QuizScreen';
+import PaymentScreen from './components/PaymentScreen';
+import PersonalChatScreen from './components/PersonalChatScreen';
 
 // Import the RootTabParamList
 import { RootTabParamList } from './types';
+
+// Initialize Firebase with expo-constants
+const firebaseConfig = {
+  apiKey: API_KEY ?? '',
+  authDomain: AUTH_DOMAIN ?? '',
+  projectId: PROJECT_ID ?? '',
+  storageBucket: STORAGE_BUCKET ?? '',
+  messagingSenderId: MESSAGING_SENDER_ID ?? '',
+  appId: APP_ID ?? '',
+};
+
+// Validate Firebase configuration
+if (!firebaseConfig.apiKey || !firebaseConfig.appId) {
+  console.warn('Firebase configuration is incomplete. Check app.json extra field and restart the app.');
+  if (process.env.NODE_ENV === 'development') {
+    throw new Error('Missing Firebase config in app.json');
+  }
+}
+
+// Initialize Firebase (if not already initialized)
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
 // Placeholder logo
 const Logo = () => (
@@ -60,17 +99,23 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
 // Tab Screens
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
-const ProfileScreen = () => (
-  <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
-    <Text style={{ color: '#fff', fontSize: 20, marginBottom: 10 }}>Student Profile</Text>
-    <Image
-      source={{ uri: 'https://via.placeholder.com/100.png?text=Profile' }}
-      style={{ width: 100, height: 100, borderRadius: 50, marginBottom: 10 }}
-    />
-    <Text style={{ color: '#fff' }}>Name: Not logged in</Text>
-    <Text style={{ color: '#fff' }}>Email: Not logged in</Text>
-  </View>
-);
+const ProfileScreen = () => {
+  const [points] = useState(0);
+  const [level] = useState(1);
+  return (
+    <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
+      <Text style={{ color: '#fff', fontSize: 20, marginBottom: 10 }}>Student Profile</Text>
+      <Image
+        source={{ uri: 'https://via.placeholder.com/100.png?text=Profile' }}
+        style={{ width: 100, height: 100, borderRadius: 50, marginBottom: 10 }}
+      />
+      <Text style={{ color: '#fff' }}>Name: Not logged in</Text>
+      <Text style={{ color: '#fff' }}>Email: Not logged in</Text>
+      <Text style={{ color: '#fff' }}>Points: {points}</Text>
+      <Text style={{ color: '#fff' }}>Level: {level}</Text>
+    </View>
+  );
+};
 
 const HistoryScreen = () => {
   const [history] = useState<{ id: string; action: string; timestamp: string }[]>([]);
@@ -148,7 +193,6 @@ const UploadScreen = () => {
 
   const addToQuiz = () => {
     if (scannedText) {
-      // navigation.navigate('Quiz', { newQuestion: scannedText });
       console.log('Navigating to Quiz with new question:', scannedText);
     }
   };
@@ -173,6 +217,111 @@ const UploadScreen = () => {
   );
 };
 
+const GroupChatScreen = () => {
+  const [groupMessages, setGroupMessages] = useState<any[]>([]);
+  const [newGroupMessage, setNewGroupMessage] = useState<string>('');
+
+  useEffect(() => {
+    const groupId = 'group1';
+    const unsubscribe = firestore()
+      .collection('groupChats')
+      .doc(groupId)
+      .collection('messages')
+      .orderBy('timestamp', 'asc')
+      .onSnapshot((snapshot: any) => {
+        const messages = snapshot.docs.map((doc: any) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setGroupMessages(messages);
+      });
+    return () => unsubscribe();
+  }, []);
+
+  const sendGroupMessage = async () => {
+    if (!newGroupMessage.trim()) return;
+    const groupId = 'group1';
+    await firestore()
+      .collection('groupChats')
+      .doc(groupId)
+      .collection('messages')
+      .add({
+        sender: 'user1',
+        text: newGroupMessage,
+        timestamp: firestore.FieldValue.serverTimestamp(),
+      });
+    setNewGroupMessage('');
+  };
+
+  return (
+    <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
+      <Text style={{ color: '#fff', fontSize: 20, marginBottom: 10 }}>Group Chat</Text>
+      <FlatList
+        data={groupMessages}
+        renderItem={({ item }) => (
+          <View style={item.sender === 'user1' ? styles.userMessage : styles.botMessage}>
+            <Text style={{ color: '#fff' }}>{item.text}</Text>
+          </View>
+        )}
+        keyExtractor={(item: any) => item.id}
+      />
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.textInput}
+          value={newGroupMessage}
+          onChangeText={setNewGroupMessage}
+          placeholder="Type a message..."
+          placeholderTextColor="#888"
+        />
+        <TouchableOpacity onPress={sendGroupMessage}>
+          <Text style={{ fontSize: 24, color: '#00f' }}>➤</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+const ScanScreen = () => {
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [scanned, setScanned] = useState<boolean>(false);
+
+  useEffect(() => {
+    const requestPermissions = async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      setHasPermission(status === 'granted');
+    };
+    requestPermissions();
+  }, []);
+
+  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+    setScanned(true);
+    Alert.alert('Scan Result', `Scanned data: ${data} (Type: ${type})`);
+  };
+
+  if (hasPermission === null) {
+    return <Text style={{ color: '#fff' }}>Requesting camera permission...</Text>;
+  }
+  if (hasPermission === false) {
+    return <Text style={{ color: '#fff' }}>No access to camera</Text>;
+  }
+
+  return (
+    <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
+      <Text style={{ color: '#fff', fontSize: 20, marginBottom: 10 }}>Scan</Text>
+      <Camera
+        style={{ flex: 1, width: '100%' }}
+        type={CameraType.back}
+        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+      />
+      {scanned && (
+        <TouchableOpacity onPress={() => setScanned(false)} style={{ padding: 10, backgroundColor: '#00f', marginTop: 10 }}>
+          <Text style={{ color: '#fff' }}>Scan Again</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
 // Main App Component
 const App = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -186,12 +335,32 @@ const App = () => {
       setIsOnline(state.isConnected ?? true);
     });
 
-    const unsubscribe = NetInfo.addEventListener((state) => {
+    const unsubscribeNetInfo = NetInfo.addEventListener((state) => {
       setIsOnline(state.isConnected ?? true);
     });
 
-    return () => unsubscribe();
+    // Firebase notifications
+    const unsubscribeMessaging = messaging().onMessage(async (remoteMessage: any) => {
+      Alert.alert('New Notification', remoteMessage.notification.body);
+    });
+
+    return () => {
+      unsubscribeNetInfo();
+      unsubscribeMessaging();
+    };
   }, []);
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      Alert.alert('Image Upload', 'Image received. Processing...');
+    }
+  };
 
   return (
     <SafeAreaProvider>
@@ -233,16 +402,9 @@ const App = () => {
               />
               <Tab.Screen
                 name="Quiz"
-                component={QuizeScreen}
+                component={QuizScreen}
                 options={{
                   tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>❓</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="Summarize"
-                component={SummarizeScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📝</Text>,
                 }}
               />
               <Tab.Screen
@@ -273,12 +435,86 @@ const App = () => {
                   tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>👤</Text>,
                 }}
               />
+              <Tab.Screen
+                name="Payment"
+                component={PaymentScreen}
+                options={{
+                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>💳</Text>,
+                }}
+              />
+              <Tab.Screen
+                name="GroupChat"
+                component={GroupChatScreen}
+                options={{
+                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📢</Text>,
+                }}
+              />
+              <Tab.Screen
+                name="PersonalChat"
+                component={PersonalChatScreen}
+                options={{
+                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>💬</Text>,
+                }}
+              />
+              <Tab.Screen
+                name="Scan"
+                component={ScanScreen}
+                options={{
+                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📷</Text>,
+                }}
+              />
             </Tab.Navigator>
           </NavigationContainer>
+
+          {/* Floating Image Upload Button */}
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              bottom: 20,
+              right: 20,
+              backgroundColor: '#00f',
+              borderRadius: 30,
+              padding: 15,
+            }}
+            onPress={pickImage}
+          >
+            <Text style={{ color: '#fff', fontSize: 20 }}>📸</Text>
+          </TouchableOpacity>
         </View>
       </ErrorBoundary>
     </SafeAreaProvider>
   );
 };
+
+// Styles for GroupChatScreen
+const styles = StyleSheet.create({
+  userMessage: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#1E90FF',
+    padding: 10,
+    marginVertical: 5,
+    borderRadius: 5,
+  },
+  botMessage: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#333333',
+    padding: 10,
+    marginVertical: 5,
+    borderRadius: 5,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  textInput: {
+    flex: 1,
+    backgroundColor: '#333',
+    color: '#fff',
+    padding: 10,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+});
 
 export default App;

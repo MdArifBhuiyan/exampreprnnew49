@@ -1,23 +1,21 @@
-// QuizScreen.tsx
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
-import { fetchMCQs, saveScoreToLeaderboard, fetchLeaderboard } from '../Database';
-import { QuizScreenProps } from '../types';
+// C:\Projects\ExamPrepRNNew\components\QuizScreen.tsx
+import { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { useRoute } from '@react-navigation/native';
+import { RootTabParamList } from '../types';
+import { MCQ, LeaderboardEntry, initDatabase, fetchMCQs, saveScoreToLeaderboard, fetchLeaderboard } from '../services/DatabaseServices';
 
-type MCQ = {
-  id: string;
-  question: string;
-  options: string;
-  answer: string;
-  explanation?: string;
-};
+type QuizScreenProps = BottomTabScreenProps<RootTabParamList, 'Quiz'>;
 
-type LeaderboardEntry = {
-  username: string;
-  score: number;
-};
+// Define the shape of route params explicitly
+interface QuizRouteParams {
+  newQuestion?: string;
+}
 
-const QuizScreen: React.FC<QuizScreenProps> = ({ route }) => {
+const QuizScreen: React.FC<QuizScreenProps> = () => {
+  const route = useRoute<BottomTabScreenProps<RootTabParamList, 'Quiz'>['route']>();
+  const params = route.params as QuizRouteParams | undefined; // Explicitly type route.params
   const [mcqs, setMCQs] = useState<MCQ[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -32,32 +30,39 @@ const QuizScreen: React.FC<QuizScreenProps> = ({ route }) => {
   const [username, setUsername] = useState<string>('');
 
   useEffect(() => {
-    const loadMCQs = async () => {
+    const initializeAndLoadMCQs = async () => {
       setLoading(true);
       setError(null);
       try {
-        const data: MCQ[] = await fetchMCQs(quizMode === 'fixed-size' ? examSize : 1);
+        await initDatabase();
+        // Fetch a batch of questions in unlimited mode to reduce loading frequency
+        const fetchSize = quizMode === 'fixed-size' ? examSize : quizMode === 'unlimited' ? 5 : 1;
+        const data: MCQ[] = await fetchMCQs(fetchSize);
+        if (data.length === 0) {
+          throw new Error('No questions available in the database.');
+        }
         setMCQs(data);
-      } catch (error) {
-        console.error('Failed to fetch MCQs:', error);
-        setError('Failed to load questions. Please try again.');
+      } catch (err: any) {
+        console.error('Failed to fetch MCQs:', err);
+        setError(err.message || 'Failed to load questions. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
     if (quizMode) {
-      loadMCQs();
+      initializeAndLoadMCQs();
     }
   }, [quizMode, examSize]);
 
   useEffect(() => {
     const loadLeaderboard = async () => {
       try {
+        await initDatabase();
         const data: LeaderboardEntry[] = await fetchLeaderboard();
         setLeaderboard(data);
-      } catch (error) {
-        console.error('Failed to fetch leaderboard:', error);
+      } catch (err: any) {
+        console.error('Failed to fetch leaderboard:', err.message || err);
       }
     };
 
@@ -65,28 +70,26 @@ const QuizScreen: React.FC<QuizScreenProps> = ({ route }) => {
   }, []);
 
   useEffect(() => {
-    if (route.params?.newQuestion) {
+    const newQuestion = params?.newQuestion;
+    if (newQuestion) {
       const newMCQ: MCQ = {
-        id: (mcqs.length + 1).toString(),
-        question: route.params.newQuestion,
-        options: JSON.stringify(['Paris', 'London', 'Berlin']),
+        id: mcqs.length + 1,
+        question: newQuestion,
+        options: ['Paris', 'London', 'Berlin'],
         answer: 'Paris',
-        explanation: 'This is a sample question added from UploadScreen.',
+        explanation: '', // No pre-stored explanation as per requirement
       };
       setMCQs((prevMCQs) => [...prevMCQs, newMCQ]);
     }
-  }, [route.params?.newQuestion]);
+  }, [params]);
 
   const handleAnswer = (answer: string) => {
     setSelectedAnswer(answer);
-    if (answer === mcqs[currentQuestionIndex].answer) {
+    if (answer === mcqs[currentQuestionIndex]?.answer) {
       setScore((prevScore) => prevScore + 1);
-      if (!showExplanation) {
-        nextQuestion();
-      }
-    } else {
-      setShowExplanation(true);
     }
+    // Show explanation after any answer (correct or incorrect)
+    setShowExplanation(true);
   };
 
   const nextQuestion = async () => {
@@ -95,19 +98,35 @@ const QuizScreen: React.FC<QuizScreenProps> = ({ route }) => {
       setSelectedAnswer(null);
       setShowExplanation(false);
     } else if (quizMode === 'unlimited') {
-      setLoading(true);
-      setError(null);
-      try {
-        const data: MCQ[] = await fetchMCQs(1);
-        setMCQs((prevMCQs) => [...prevMCQs, ...data]);
+      if (currentQuestionIndex < mcqs.length - 1) {
         setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
         setSelectedAnswer(null);
         setShowExplanation(false);
-      } catch (error) {
-        console.error('Failed to fetch next question:', error);
-        setError('Failed to load the next question. Please try again.');
-      } finally {
-        setLoading(false);
+      } else {
+        setLoading(true);
+        setError(null);
+        try {
+          // Fetch a batch of 5 questions in unlimited mode
+          const data: MCQ[] = await fetchMCQs(5);
+          if (data.length === 0) {
+            setIsQuizFinished(true);
+            if (username) {
+              await saveScoreToLeaderboard(username, score);
+              const updatedLeaderboard = await fetchLeaderboard();
+              setLeaderboard(updatedLeaderboard);
+            }
+            return;
+          }
+          setMCQs((prevMCQs) => [...prevMCQs, ...data]);
+          setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
+          setSelectedAnswer(null);
+          setShowExplanation(false);
+        } catch (err: any) {
+          console.error('Failed to fetch next question:', err);
+          setError(err.message || 'Failed to load the next question. Please try again.');
+        } finally {
+          setLoading(false);
+        }
       }
     } else if (quizMode === 'fixed-size' && currentQuestionIndex < mcqs.length - 1) {
       setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
@@ -115,8 +134,12 @@ const QuizScreen: React.FC<QuizScreenProps> = ({ route }) => {
       setShowExplanation(false);
     } else {
       setIsQuizFinished(true);
-      if (username) {
-        saveScoreToLeaderboard(username, score);
+      if (!username) {
+        Alert.alert('Enter Username', 'Please enter your username to save your score to the leaderboard.');
+      } else {
+        await saveScoreToLeaderboard(username, score);
+        const updatedLeaderboard = await fetchLeaderboard();
+        setLeaderboard(updatedLeaderboard);
       }
     }
   };
@@ -127,6 +150,21 @@ const QuizScreen: React.FC<QuizScreenProps> = ({ route }) => {
     setScore(0);
     setIsQuizFinished(false);
     setShowExplanation(false);
+    setMCQs([]); // Clear MCQs to fetch new ones
+    setQuizMode(quizMode); // Trigger useEffect to fetch new questions
+  };
+
+  const handleExamSizeChange = (text: string) => {
+    const size = parseInt(text);
+    if (!isNaN(size) && size > 0) {
+      setExamSize(size);
+    } else {
+      setExamSize(30);
+    }
+  };
+
+  const toggleExplanation = () => {
+    setShowExplanation((prev) => !prev);
   };
 
   const currentQuestion: MCQ | undefined = mcqs[currentQuestionIndex];
@@ -135,22 +173,40 @@ const QuizScreen: React.FC<QuizScreenProps> = ({ route }) => {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Select Quiz Mode</Text>
-        <TouchableOpacity onPress={() => setQuizMode('one-by-one')} style={styles.modeButton}>
+        <TouchableOpacity
+          onPress={() => setQuizMode('one-by-one')}
+          style={styles.modeButton}
+          accessible={true}
+          accessibilityLabel="Select One-by-One Practice mode"
+        >
           <Text style={styles.modeButtonText}>One-by-One Practice</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setQuizMode('fixed-size')} style={styles.modeButton}>
+        <TouchableOpacity
+          onPress={() => setQuizMode('fixed-size')}
+          style={styles.modeButton}
+          accessible={true}
+          accessibilityLabel="Select Fixed-Size Exam mode"
+        >
           <Text style={styles.modeButtonText}>Fixed-Size Exam</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setQuizMode('unlimited')} style={styles.modeButton}>
+        <TouchableOpacity
+          onPress={() => setQuizMode('unlimited')}
+          style={styles.modeButton}
+          accessible={true}
+          accessibilityLabel="Select Unlimited mode"
+        >
           <Text style={styles.modeButtonText}>Unlimited Mode</Text>
         </TouchableOpacity>
         {quizMode === 'fixed-size' && (
           <TextInput
-            placeholder="Enter exam size"
+            placeholder="Enter exam size (e.g., 30)"
             placeholderTextColor="#888"
             value={examSize.toString()}
-            onChangeText={(text) => setExamSize(parseInt(text) || 30)}
+            onChangeText={handleExamSizeChange}
+            keyboardType="numeric"
             style={styles.input}
+            accessible={true}
+            accessibilityLabel="Enter number of questions for Fixed-Size Exam"
           />
         )}
       </View>
@@ -168,20 +224,36 @@ const QuizScreen: React.FC<QuizScreenProps> = ({ route }) => {
           value={username}
           onChangeText={setUsername}
           style={styles.input}
+          accessible={true}
+          accessibilityLabel="Enter your username for the leaderboard"
         />
-        <TouchableOpacity onPress={restartQuiz} style={styles.button}>
+        <TouchableOpacity
+          onPress={restartQuiz}
+          style={styles.button}
+          accessible={true}
+          accessibilityLabel="Restart the quiz"
+        >
           <Text style={styles.buttonText}>Restart Quiz</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setQuizMode(null)} style={styles.button}>
+        <TouchableOpacity
+          onPress={() => setQuizMode(null)}
+          style={styles.button}
+          accessible={true}
+          accessibilityLabel="Change quiz mode"
+        >
           <Text style={styles.buttonText}>Change Mode</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Leaderboard</Text>
-        {leaderboard.map((entry, index) => (
-          <View key={index} style={styles.leaderboardEntry}>
-            <Text style={styles.leaderboardText}>{entry.username}</Text>
-            <Text style={styles.leaderboardText}>{entry.score}</Text>
-          </View>
-        ))}
+        {leaderboard.length > 0 ? (
+          leaderboard.map((entry, index) => (
+            <View key={index} style={styles.leaderboardEntry}>
+              <Text style={styles.leaderboardText}>{entry.username}</Text>
+              <Text style={styles.leaderboardText}>{entry.score}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noLeaderboardText}>No leaderboard entries yet.</Text>
+        )}
       </View>
     );
   }
@@ -199,8 +271,37 @@ const QuizScreen: React.FC<QuizScreenProps> = ({ route }) => {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={() => setQuizMode(null)} style={styles.button}>
+        <TouchableOpacity
+          onPress={() => setQuizMode(quizMode)}
+          style={styles.button}
+          accessible={true}
+          accessibilityLabel="Retry loading questions"
+        >
           <Text style={styles.buttonText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setQuizMode(null)}
+          style={styles.button}
+          accessible={true}
+          accessibilityLabel="Change quiz mode"
+        >
+          <Text style={styles.buttonText}>Change Mode</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!currentQuestion) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.noQuestionsText}>No questions available. Please try again later.</Text>
+        <TouchableOpacity
+          onPress={() => setQuizMode(null)}
+          style={styles.button}
+          accessible={true}
+          accessibilityLabel="Change quiz mode"
+        >
+          <Text style={styles.buttonText}>Change Mode</Text>
         </TouchableOpacity>
       </View>
     );
@@ -209,40 +310,62 @@ const QuizScreen: React.FC<QuizScreenProps> = ({ route }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Quiz</Text>
-      {currentQuestion ? (
-        <View>
-          <Text style={styles.questionText}>{currentQuestion.question}</Text>
-          {JSON.parse(currentQuestion.options).map((option: string, index: number) => (
-            <TouchableOpacity
-              key={index}
-              onPress={() => handleAnswer(option)}
-              style={[
-                styles.optionButton,
-                selectedAnswer === option && {
-                  backgroundColor: option === currentQuestion.answer ? '#0f0' : '#f00',
-                },
-              ]}
-            >
-              <Text style={styles.optionText}>{option}</Text>
-            </TouchableOpacity>
-          ))}
-          {selectedAnswer && (
-            <Text style={styles.statusText}>
-              Status: {selectedAnswer === currentQuestion.answer ? 'Correct' : 'Incorrect'}
-            </Text>
-          )}
-          {showExplanation && (
-            <Text style={styles.explanationText}>
-              Explanation: {currentQuestion.explanation || 'No explanation available.'}
-            </Text>
-          )}
-          <TouchableOpacity onPress={nextQuestion} style={styles.button}>
-            <Text style={styles.buttonText}>Next Question</Text>
+      <View>
+        <Text style={styles.questionText}>
+          Question {currentQuestionIndex + 1}/{mcqs.length}: {currentQuestion.question}
+        </Text>
+        {currentQuestion.options.map((option: string, index: number) => (
+          <TouchableOpacity
+            key={index}
+            onPress={() => handleAnswer(option)}
+            disabled={selectedAnswer !== null}
+            style={[
+              styles.optionButton,
+              ...(selectedAnswer === option
+                ? [{ backgroundColor: option === currentQuestion.answer ? '#0f0' : '#f00' }]
+                : []),
+              ...(selectedAnswer && option === currentQuestion.answer
+                ? [{ backgroundColor: '#0f0' }]
+                : []),
+            ]}
+            accessible={true}
+            accessibilityLabel={`Option ${index + 1}: ${option}`}
+          >
+            <Text style={styles.optionText}>{option}</Text>
           </TouchableOpacity>
-        </View>
-      ) : (
-        <Text style={styles.noQuestionsText}>No more questions!</Text>
-      )}
+        ))}
+        {selectedAnswer && (
+          <Text style={styles.statusText}>
+            Status: {selectedAnswer === currentQuestion.answer ? 'Correct' : 'Incorrect'}
+          </Text>
+        )}
+        {selectedAnswer && (
+          <TouchableOpacity
+            onPress={toggleExplanation}
+            style={styles.explanationToggle}
+            accessible={true}
+            accessibilityLabel={showExplanation ? 'Hide explanation' : 'Show explanation'}
+          >
+            <Text style={styles.explanationToggleText}>
+              {showExplanation ? 'Hide Explanation' : 'Show Explanation'}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {showExplanation && (
+          <Text style={styles.explanationText}>
+            Explanation: {currentQuestion.explanation || 'No explanation available.'}
+          </Text>
+        )}
+        <TouchableOpacity
+          onPress={nextQuestion}
+          style={[styles.button, !selectedAnswer && styles.buttonDisabled]}
+          disabled={!selectedAnswer}
+          accessible={true}
+          accessibilityLabel="Go to the next question"
+        >
+          <Text style={styles.buttonText}>Next Question</Text>
+        </TouchableOpacity>
+      </View>
       <Text style={styles.scoreText}>Score: {score}/{mcqs.length}</Text>
     </View>
   );
@@ -301,6 +424,16 @@ const styles = StyleSheet.create({
   explanationText: {
     color: '#fff',
     marginTop: 10,
+    fontStyle: 'italic',
+  },
+  explanationToggle: {
+    padding: 10,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  explanationToggleText: {
+    color: '#00f',
+    fontSize: 16,
   },
   noQuestionsText: {
     color: '#fff',
@@ -317,6 +450,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 10,
     alignItems: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#555',
   },
   buttonText: {
     color: '#fff',
@@ -344,6 +480,11 @@ const styles = StyleSheet.create({
   leaderboardText: {
     color: '#fff',
     fontSize: 16,
+  },
+  noLeaderboardText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
 

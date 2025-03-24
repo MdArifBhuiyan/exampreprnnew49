@@ -1,12 +1,7 @@
-// types.ts
-import { RouteProp } from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs'; // Use BottomTabNavigationProp
-
+// C:\Projects\ExamPrepRNNew\types.ts
 export type RootTabParamList = {
-  Login: undefined;
   Chat: undefined;
   Quiz: { newQuestion?: string };
-  Summarize: undefined;
   Groups: undefined;
   Upload: undefined;
   History: undefined;
@@ -15,15 +10,13 @@ export type RootTabParamList = {
   GroupChat: undefined;
   PersonalChat: undefined;
   Scan: undefined;
+  StudentDashboard: { userId: string };
 };
 
-// Define QuizScreenProps
-export type QuizScreenProps = {
-  navigation: BottomTabNavigationProp<RootTabParamList, 'Quiz'>;
-  route: RouteProp<RootTabParamList, 'Quiz'>;
-};
-
-// Define SummarizeScreenProps
-export type SummarizeScreenProps = {
-  navigation: BottomTabNavigationProp<RootTabParamList, 'Summarize'>;
+export type RootStackParamList = {
+  SignUp: undefined;
+  Login: undefined;
+  Onboarding: { role: string }; // Updated to allow role parameter
+  MainTabs: undefined;
+  Dashboard: { userId: string };
 };

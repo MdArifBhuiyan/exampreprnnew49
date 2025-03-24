@@ -1,32 +1,26 @@
-import { initializeApp } from '@react-native-firebase/app';
+// C:\Projects\ExamPrepRNNew\firebaseConfig.ts
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
+import 'firebase/compat/messaging';
 
-
-// Fallback type definition since FirebaseOptions is not exported
-interface FirebaseOptions {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  storageBucket: string;
-  messagingSenderId: string;
-  appId: string;
-}
-
-const firebaseConfig: FirebaseOptions = {
-  apiKey: process.env.API_KEY ?? '',
-  authDomain: process.env.AUTH_DOMAIN ?? '',
-  projectId: process.env.PROJECT_ID ?? '',
-  storageBucket: process.env.STORAGE_BUCKET ?? '',
-  messagingSenderId: process.env.MESSAGING_SENDER_ID ?? '',
-  appId: process.env.APP_ID ?? '',
+// Your Firebase configuration
+const firebaseConfig = {
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
 };
 
-if (!firebaseConfig.apiKey || !firebaseConfig.appId) {
-  console.warn('Firebase configuration is incomplete. Check .env file and restart the app.');
-  if (process.env.NODE_ENV === 'development') {
-    throw new Error('Missing Firebase config in .env');
-  }
+// Initialize Firebase
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
 }
 
-const firebaseApp = initializeApp(firebaseConfig);
+export const auth = firebase.auth();
+export const db = firebase.firestore();
+export const messaging = firebase.messaging();
 
-export default firebaseApp;
+export default firebase;

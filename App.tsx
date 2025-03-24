@@ -1,66 +1,63 @@
-// App.tsx
-import Constants from 'expo-constants';
-
-// Access environment variables
-const API_KEY = Constants.expoConfig?.extra?.API_KEY;
-const AUTH_DOMAIN = Constants.expoConfig?.extra?.AUTH_DOMAIN;
-const PROJECT_ID = Constants.expoConfig?.extra?.PROJECT_ID;
-const STORAGE_BUCKET = Constants.expoConfig?.extra?.STORAGE_BUCKET;
-const MESSAGING_SENDER_ID = Constants.expoConfig?.extra?.MESSAGING_SENDER_ID;
-const APP_ID = Constants.expoConfig?.extra?.APP_ID;
-
-// Log to verify
-console.log('API_KEY:', API_KEY);
-console.log('AUTH_DOMAIN:', AUTH_DOMAIN);
-console.log('PROJECT_ID:', PROJECT_ID);
-console.log('STORAGE_BUCKET:', STORAGE_BUCKET);
-console.log('MESSAGING_SENDER_ID:', MESSAGING_SENDER_ID);
-console.log('APP_ID:', APP_ID);
-
-// Core components and navigation
+// C:\Projects\ExamPrepRNNew\App.tsx
 import React, { useState, useEffect } from 'react';
-import { Text, View, Image, TouchableOpacity, TextInput, FlatList, Switch, Alert, StyleSheet } from 'react-native';
+import {
+  AppRegistry,
+  Text,
+  View,
+  Image,
+  TouchableOpacity,
+  TextInput,
+  FlatList,
+  Switch,
+  Alert,
+  StyleSheet,
+  AppState,
+  type AppStateStatus,
+} from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import NetInfo from '@react-native-community/netinfo';
+import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Camera, CameraType } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import firebase from '@react-native-firebase/app';
-import firestore from '@react-native-firebase/firestore';
-import messaging from '@react-native-firebase/messaging';
+import * as DocumentPicker from 'expo-document-picker';
+import * as Network from 'expo-network';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Import screens from components/
+// Firebase imports
+import auth from '@react-native-firebase/auth';
+import { db } from './firebaseConfig';
+import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
+import { onAuthStateChanged, signOut } from '@react-native-firebase/auth';
+import { collection, addDoc, onSnapshot, orderBy, serverTimestamp, query, doc, getDoc } from '@react-native-firebase/firestore';
+
+// Import MCQ extraction functions
+import { extractMCQsFromImage, extractMCQsFromPDF } from './MCQExtractor';
+import { saveMCQs } from './services/DatabaseServices';
+
+// Import screens
+import ScanScreen from './components/ScanScreen';
 import ChatScreen from './components/ChatScreen';
 import LoginScreen from './components/LoginScreen';
-import QuizScreen from './components/QuizScreen';
+import QuizScreen from 'components/QuizScreen';
 import PaymentScreen from './components/PaymentScreen';
 import PersonalChatScreen from './components/PersonalChatScreen';
+import SignUpScreen from './components/SignUpScreen';
+import OnboardingScreen from './components/OnboardingScreen';
+import DashboardScreen from './components/DashboardScreen';
 
-// Import the RootTabParamList
-import { RootTabParamList } from './types';
 
-// Initialize Firebase with expo-constants
-const firebaseConfig = {
-  apiKey: API_KEY ?? '',
-  authDomain: AUTH_DOMAIN ?? '',
-  projectId: PROJECT_ID ?? '',
-  storageBucket: STORAGE_BUCKET ?? '',
-  messagingSenderId: MESSAGING_SENDER_ID ?? '',
-  appId: APP_ID ?? '',
-};
+// Import types
+import { RootTabParamList, RootStackParamList } from './types';
 
-// Validate Firebase configuration
-if (!firebaseConfig.apiKey || !firebaseConfig.appId) {
-  console.warn('Firebase configuration is incomplete. Check app.json extra field and restart the app.');
-  if (process.env.NODE_ENV === 'development') {
-    throw new Error('Missing Firebase config in app.json');
-  }
-}
+// Load environment variables
+import 'dotenv/config';
 
-// Initialize Firebase (if not already initialized)
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
+// Define a custom User type since the import from @react-native-firebase/auth is not working
+interface CustomUser {
+  uid: string;
+  email: string | null;
+  // Add other properties as needed, e.g., displayName, photoURL, etc.
 }
 
 // Placeholder logo
@@ -72,12 +69,16 @@ const Logo = () => (
 );
 
 // Error Boundary Component
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
 interface ErrorBoundaryState {
   hasError: boolean;
   error: string | null;
 }
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: Error) {
@@ -98,10 +99,74 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
 
 // Tab Screens
 const Tab = createBottomTabNavigator<RootTabParamList>();
+const Stack = createStackNavigator<RootStackParamList>();
 
 const ProfileScreen = () => {
-  const [points] = useState(0);
-  const [level] = useState(1);
+  const [userData, setUserData] = useState<{
+    name: string;
+    email: string;
+    points: number;
+    level: number;
+  } | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const currentUser = auth().currentUser as CustomUser | null; // Type assertion to CustomUser
+        if (currentUser) {
+          const userDocRef = doc(db as any, 'users', currentUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists) {
+            const data = userDoc.data();
+            setUserData({
+              name: data?.name ?? 'Unknown',
+              email: currentUser.email ?? 'No email',
+              points: data?.points ?? 0,
+              level: data?.level ?? 1,
+            });
+          } else {
+            console.log('No such user document!');
+            setUserData({
+              name: 'Not logged in',
+              email: 'Not logged in',
+              points: 0,
+              level: 1,
+            });
+          }
+        } else {
+          console.log('No user is logged in');
+          setUserData({
+            name: 'Not logged in',
+            email: 'Not logged in',
+            points: 0,
+            level: 1,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        setUserData({
+          name: 'Error',
+          email: 'Error',
+          points: 0,
+          level: 1,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' }}>
+        <Text style={{ color: '#fff' }}>Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
       <Text style={{ color: '#fff', fontSize: 20, marginBottom: 10 }}>Student Profile</Text>
@@ -109,16 +174,17 @@ const ProfileScreen = () => {
         source={{ uri: 'https://via.placeholder.com/100.png?text=Profile' }}
         style={{ width: 100, height: 100, borderRadius: 50, marginBottom: 10 }}
       />
-      <Text style={{ color: '#fff' }}>Name: Not logged in</Text>
-      <Text style={{ color: '#fff' }}>Email: Not logged in</Text>
-      <Text style={{ color: '#fff' }}>Points: {points}</Text>
-      <Text style={{ color: '#fff' }}>Level: {level}</Text>
+      <Text style={{ color: '#fff' }}>Name: {userData?.name}</Text>
+      <Text style={{ color: '#fff' }}>Email: {userData?.email}</Text>
+      <Text style={{ color: '#fff' }}>Points: {userData?.points}</Text>
+      <Text style={{ color: '#fff' }}>Level: {userData?.level}</Text>
     </View>
   );
 };
 
 const HistoryScreen = () => {
   const [history] = useState<{ id: string; action: string; timestamp: string }[]>([]);
+
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
       <Text style={{ color: '#fff', fontSize: 20, marginBottom: 10 }}>History</Text>
@@ -151,7 +217,7 @@ const GroupsScreen = () => {
         group.code.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredGroups(filtered);
-  }, [searchQuery]);
+  }, [searchQuery, groups]);
 
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
@@ -186,9 +252,44 @@ const GroupsScreen = () => {
 
 const UploadScreen = () => {
   const [scannedText, setScannedText] = useState('');
+  const [extractedMCQs, setExtractedMCQs] = useState<any[]>([]);
 
-  const simulateScan = () => {
-    setScannedText('What is the capital of France?');
+  const handleImageUpload = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 1,
+      });
+      if (!result.canceled) {
+        setScannedText('Processing your image...');
+        const mcqs = await extractMCQsFromImage(result.assets[0].uri);
+        saveMCQs(mcqs);
+        setExtractedMCQs(mcqs);
+        setScannedText(`Extracted ${mcqs.length} MCQs from the image.`);
+      }
+    } catch (error) {
+      console.error('Error during image upload:', error);
+      setScannedText('Sorry, I couldn’t process the image. Please try again.');
+    }
+  };
+
+  const handlePDFUpload = async () => {
+    try {
+      const file = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf'],
+      });
+      if (!file.canceled) {
+        setScannedText('Processing your PDF...');
+        const mcqs = await extractMCQsFromPDF(file.assets[0].uri);
+        saveMCQs(mcqs);
+        setExtractedMCQs(mcqs);
+        setScannedText(`Extracted ${mcqs.length} MCQs from the PDF.`);
+      }
+    } catch (error) {
+      console.error('Error during PDF upload:', error);
+      setScannedText('Sorry, I couldn’t process the PDF. Please try again.');
+    }
   };
 
   const addToQuiz = () => {
@@ -200,57 +301,83 @@ const UploadScreen = () => {
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
       <Text style={{ color: '#fff', fontSize: 20, marginBottom: 10 }}>Upload Question</Text>
-      <TouchableOpacity onPress={simulateScan} style={{ padding: 10, backgroundColor: '#333', marginBottom: 10 }}>
-        <Text style={{ color: '#fff' }}>Scan Book/Question</Text>
+      <TouchableOpacity onPress={handleImageUpload} style={{ padding: 10, backgroundColor: '#333', marginBottom: 10 }}>
+        <Text style={{ color: '#fff' }}>Upload Image</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handlePDFUpload} style={{ padding: 10, backgroundColor: '#333', marginBottom: 10 }}>
+        <Text style={{ color: '#fff' }}>Upload PDF</Text>
       </TouchableOpacity>
       {scannedText ? (
         <>
-          <Text style={{ color: '#fff' }}>Scanned: {scannedText}</Text>
+          <Text style={{ color: '#fff' }}>{scannedText}</Text>
+          {extractedMCQs.length > 0 && (
+            <FlatList
+              data={extractedMCQs}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={({ item }) => (
+                <View style={{ padding: 10, backgroundColor: '#333', marginVertical: 5, borderRadius: 5 }}>
+                  <Text style={{ color: '#fff' }}>{item.question}</Text>
+                  {item.options.map((option: string, idx: number) => (
+                    <Text key={idx} style={{ color: '#aaa' }}>{option}</Text>
+                  ))}
+                  <Text style={{ color: '#0f0' }}>Answer: {item.answer}</Text>
+                </View>
+              )}
+            />
+          )}
           <TouchableOpacity onPress={addToQuiz} style={{ padding: 10, backgroundColor: '#00f', marginTop: 10 }}>
             <Text style={{ color: '#fff' }}>Add to Quiz</Text>
           </TouchableOpacity>
         </>
       ) : (
-        <Text style={{ color: '#fff' }}>No content scanned yet.</Text>
+        <Text style={{ color: '#fff' }}>No content uploaded yet.</Text>
       )}
     </View>
   );
 };
 
+interface GroupMessage {
+  id: string;
+  sender: string;
+  text: string;
+  timestamp: any;
+}
+
 const GroupChatScreen = () => {
-  const [groupMessages, setGroupMessages] = useState<any[]>([]);
+  const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [newGroupMessage, setNewGroupMessage] = useState<string>('');
 
   useEffect(() => {
     const groupId = 'group1';
-    const unsubscribe = firestore()
-      .collection('groupChats')
-      .doc(groupId)
-      .collection('messages')
-      .orderBy('timestamp', 'asc')
-      .onSnapshot((snapshot: any) => {
-        const messages = snapshot.docs.map((doc: any) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setGroupMessages(messages);
-      });
+    const messagesRef = collection(db as any, 'groupChats', groupId, 'messages');
+    const q = query(messagesRef, orderBy('timestamp', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const messages = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as GroupMessage[];
+      setGroupMessages(messages);
+    }, (error) => {
+      console.error('Error fetching group messages:', error);
+    });
+
     return () => unsubscribe();
   }, []);
 
   const sendGroupMessage = async () => {
     if (!newGroupMessage.trim()) return;
     const groupId = 'group1';
-    await firestore()
-      .collection('groupChats')
-      .doc(groupId)
-      .collection('messages')
-      .add({
+    const messagesRef = collection(db as any, 'groupChats', groupId, 'messages');
+    try {
+      await addDoc(messagesRef, {
         sender: 'user1',
         text: newGroupMessage,
-        timestamp: firestore.FieldValue.serverTimestamp(),
+        timestamp: serverTimestamp(),
       });
-    setNewGroupMessage('');
+      setNewGroupMessage('');
+    } catch (error) {
+      console.error('Error sending group message:', error);
+    }
   };
 
   return (
@@ -263,7 +390,7 @@ const GroupChatScreen = () => {
             <Text style={{ color: '#fff' }}>{item.text}</Text>
           </View>
         )}
-        keyExtractor={(item: any) => item.id}
+        keyExtractor={(item) => item.id}
       />
       <View style={styles.inputContainer}>
         <TextInput
@@ -281,86 +408,202 @@ const GroupChatScreen = () => {
   );
 };
 
-const ScanScreen = () => {
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [scanned, setScanned] = useState<boolean>(false);
-
-  useEffect(() => {
-    const requestPermissions = async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    };
-    requestPermissions();
-  }, []);
-
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
-    setScanned(true);
-    Alert.alert('Scan Result', `Scanned data: ${data} (Type: ${type})`);
-  };
-
-  if (hasPermission === null) {
-    return <Text style={{ color: '#fff' }}>Requesting camera permission...</Text>;
-  }
-  if (hasPermission === false) {
-    return <Text style={{ color: '#fff' }}>No access to camera</Text>;
-  }
-
-  return (
-    <View style={{ flex: 1, padding: 20, backgroundColor: '#121212' }}>
-      <Text style={{ color: '#fff', fontSize: 20, marginBottom: 10 }}>Scan</Text>
-      <Camera
-        style={{ flex: 1, width: '100%' }}
-        type={CameraType.back}
-        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
-      />
-      {scanned && (
-        <TouchableOpacity onPress={() => setScanned(false)} style={{ padding: 10, backgroundColor: '#00f', marginTop: 10 }}>
-          <Text style={{ color: '#fff' }}>Scan Again</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-};
-
 // Main App Component
 const App = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
+  const [user, setUser] = useState<CustomUser | null>(null); // Use CustomUser instead of User
 
   useEffect(() => {
     console.log('App component rendering...');
 
-    // Check network status
-    NetInfo.fetch().then((state) => {
-      setIsOnline(state.isConnected ?? true);
+    // Request notification permissions and get FCM token
+    const setupNotifications = async () => {
+      const authStatus = await messaging().requestPermission();
+      const enabled =
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      if (enabled) {
+        console.log('Notification permission granted.');
+        const token = await messaging().getToken();
+        console.log('FCM Token:', token);
+      } else {
+        console.log('Notification permission denied.');
+      }
+
+      // Handle foreground messages
+      messaging().onMessage(async (remoteMessage) => {
+        console.log('Foreground message received:', remoteMessage);
+        Alert.alert('New Notification', remoteMessage.notification?.body || 'You have a new message!');
+      });
+    };
+
+    setupNotifications();
+
+    // Handle background messages
+    messaging().setBackgroundMessageHandler(async (remoteMessage: FirebaseMessagingTypes.RemoteMessage) => {
+      console.log('Background message received:', remoteMessage);
     });
 
-    const unsubscribeNetInfo = NetInfo.addEventListener((state) => {
-      setIsOnline(state.isConnected ?? true);
+    // Check authentication state on app launch
+    const unsubscribe = onAuthStateChanged(auth(), async (currentUser: CustomUser | null) => {
+      console.log('onAuthStateChanged triggered');
+      setUser(currentUser);
+      if (currentUser) {
+        console.log('Fetching user data from Firestore...');
+        const userDocRef = doc(db as any, 'users', currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        const userData = userDoc.data();
+        console.log('User data from Firestore:', userData);
+        if (userData?.role === 'institution') {
+          console.log('User is an institution, signing out');
+          await signOut(auth());
+          setUser(null);
+        } else {
+          // Persistent login for students/teachers
+          await AsyncStorage.setItem('userToken', currentUser.uid);
+        }
+      }
     });
 
-    // Firebase notifications
-    const unsubscribeMessaging = messaging().onMessage(async (remoteMessage: any) => {
-      Alert.alert('New Notification', remoteMessage.notification.body);
+    // Force logout for institutions on app close
+    const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'inactive' || nextAppState === 'background') {
+        const currentUser: CustomUser | null = auth().currentUser; // Use CustomUser
+        if (currentUser) {
+          const userDocRef = doc(db as any, 'users', currentUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.data()?.role === 'institution') {
+            await signOut(auth());
+            setUser(null);
+          }
+        }
+      }
     });
+
+    // Check network status using expo-network
+    const checkNetworkStatus = async () => {
+      try {
+        const networkState = await Network.getNetworkStateAsync();
+        setIsOnline(networkState.isConnected ?? true);
+        console.log('Network state:', networkState);
+      } catch (error) {
+        console.error('Error fetching network status with expo-network:', error);
+        setIsOnline(true);
+      }
+    };
+
+    // Initial check
+    checkNetworkStatus();
+
+    // Poll network status every 10 seconds
+    const intervalId = setInterval(checkNetworkStatus, 10000);
 
     return () => {
-      unsubscribeNetInfo();
-      unsubscribeMessaging();
+      unsubscribe();
+      subscription.remove();
+      clearInterval(intervalId);
     };
   }, []);
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      Alert.alert('Image Upload', 'Image received. Processing...');
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 1,
+      });
+      if (!result.canceled) {
+        Alert.alert('Image Upload', 'Image received. Processing...');
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
+
+  const MainTabs = () => (
+    <Tab.Navigator
+      screenOptions={{
+        tabBarStyle: { backgroundColor: isDarkMode ? '#333' : '#ddd' },
+        tabBarActiveTintColor: '#fff',
+        tabBarInactiveTintColor: '#888',
+        headerShown: false,
+        tabBarShowLabel: true,
+      }}
+    >
+      <Tab.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>💬</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Quiz"
+        component={QuizScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>❓</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Groups"
+        component={GroupsScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>👥</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Upload"
+        component={UploadScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📤</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📜</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>👤</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Payment"
+        component={PaymentScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>💳</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="GroupChat"
+        component={GroupChatScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📢</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="PersonalChat"
+        component={PersonalChatScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>💬</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Scan"
+        component={ScanScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📷</Text>,
+        }}
+      />
+    </Tab.Navigator>
+  );
 
   return (
     <SafeAreaProvider>
@@ -375,95 +618,14 @@ const App = () => {
               <Switch value={isDarkMode} onValueChange={setIsDarkMode} />
             </View>
           </View>
-
           <NavigationContainer>
-            <Tab.Navigator
-              screenOptions={{
-                tabBarStyle: { backgroundColor: isDarkMode ? '#333' : '#ddd' },
-                tabBarActiveTintColor: '#fff',
-                tabBarInactiveTintColor: '#888',
-                headerShown: false,
-                tabBarShowLabel: true,
-              }}
-            >
-              <Tab.Screen
-                name="Login"
-                component={LoginScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>🔑</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="Chat"
-                component={ChatScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>💬</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="Quiz"
-                component={QuizScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>❓</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="Groups"
-                component={GroupsScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>👥</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="Upload"
-                component={UploadScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📤</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="History"
-                component={HistoryScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📜</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="Profile"
-                component={ProfileScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>👤</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="Payment"
-                component={PaymentScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>💳</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="GroupChat"
-                component={GroupChatScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📢</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="PersonalChat"
-                component={PersonalChatScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>💬</Text>,
-                }}
-              />
-              <Tab.Screen
-                name="Scan"
-                component={ScanScreen}
-                options={{
-                  tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📷</Text>,
-                }}
-              />
-            </Tab.Navigator>
+            <Stack.Navigator initialRouteName={user ? 'MainTabs' : 'SignUp'}>
+              <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false }} />
+              <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+              <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
+              <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+              <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
+            </Stack.Navigator>
           </NavigationContainer>
 
           {/* Floating Image Upload Button */}
@@ -518,3 +680,6 @@ const styles = StyleSheet.create({
 });
 
 export default App;
+
+// Register the main component for Expo
+AppRegistry.registerComponent('ExamPrepRNNew', () => App);

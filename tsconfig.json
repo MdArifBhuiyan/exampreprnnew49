@@ -1,22 +1,24 @@
-// tsconfig.json
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "target": "esnext",
-    "module": "esnext",
-    "jsx": "react-native",
     "strict": true,
+    "baseUrl": ".",
+    "moduleResolution": "node",
+    "jsx": "react-native",
+    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true,
-    "types": ["react", "react-native"],
-    "baseUrl": ".",
-    "paths": {
-      "*": ["./*"]
-    }
+    "resolveJsonModule": true
   },
-  "include": ["**/*.ts", "**/*.tsx", "env.d.ts"],
-  "exclude": ["node_modules", "babel.config.js", "metro.config.js", "jest.config.js"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "jest.config.js",
+    "TestCamera"
+  ]
 }

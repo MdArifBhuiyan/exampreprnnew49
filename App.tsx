@@ -23,6 +23,17 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Network from 'expo-network';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants'; // Add this import
+
+// Import environment variables
+import {
+  API_KEY,
+  AUTH_DOMAIN,
+  PROJECT_ID,
+  STORAGE_BUCKET,
+  MESSAGING_SENDER_ID,
+  APP_ID,
+} from 'react-native-dotenv';
 
 // Firebase imports
 import auth from '@react-native-firebase/auth';
@@ -39,19 +50,23 @@ import { saveMCQs } from './services/DatabaseServices';
 import ScanScreen from './components/ScanScreen';
 import ChatScreen from './components/ChatScreen';
 import LoginScreen from './components/LoginScreen';
-import QuizScreen from 'components/QuizScreen';
+import QuizScreen from './components/QuizScreen';
 import PaymentScreen from './components/PaymentScreen';
 import PersonalChatScreen from './components/PersonalChatScreen';
 import SignUpScreen from './components/SignUpScreen';
 import OnboardingScreen from './components/OnboardingScreen';
 import DashboardScreen from './components/DashboardScreen';
 
-
 // Import types
 import { RootTabParamList, RootStackParamList } from './types';
 
-// Load environment variables
-import 'dotenv/config';
+// Access environment variables with fallback to react-native-dotenv
+const apiKey = Constants.expoConfig?.extra?.API_KEY || API_KEY;
+const authDomain = Constants.expoConfig?.extra?.AUTH_DOMAIN || AUTH_DOMAIN;
+const projectId = Constants.expoConfig?.extra?.PROJECT_ID || PROJECT_ID;
+const storageBucket = Constants.expoConfig?.extra?.STORAGE_BUCKET || STORAGE_BUCKET;
+const messagingSenderId = Constants.expoConfig?.extra?.MESSAGING_SENDER_ID || MESSAGING_SENDER_ID;
+const appId = Constants.expoConfig?.extra?.APP_ID || APP_ID;
 
 // Define a custom User type since the import from @react-native-firebase/auth is not working
 interface CustomUser {
@@ -115,7 +130,7 @@ const ProfileScreen = () => {
       try {
         const currentUser = auth().currentUser as CustomUser | null; // Type assertion to CustomUser
         if (currentUser) {
-          const userDocRef = doc(db as any, 'users', currentUser.uid);
+          const userDocRef = doc(db, 'users', currentUser.uid); // Removed 'as any' since db type issue is resolved
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists) {
             const data = userDoc.data();
@@ -349,7 +364,7 @@ const GroupChatScreen = () => {
 
   useEffect(() => {
     const groupId = 'group1';
-    const messagesRef = collection(db as any, 'groupChats', groupId, 'messages');
+    const messagesRef = collection(db, 'groupChats', groupId, 'messages'); // Removed 'as any'
     const q = query(messagesRef, orderBy('timestamp', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const messages = snapshot.docs.map((doc) => ({
@@ -367,7 +382,7 @@ const GroupChatScreen = () => {
   const sendGroupMessage = async () => {
     if (!newGroupMessage.trim()) return;
     const groupId = 'group1';
-    const messagesRef = collection(db as any, 'groupChats', groupId, 'messages');
+    const messagesRef = collection(db, 'groupChats', groupId, 'messages'); // Removed 'as any'
     try {
       await addDoc(messagesRef, {
         sender: 'user1',
@@ -451,9 +466,9 @@ const App = () => {
       setUser(currentUser);
       if (currentUser) {
         console.log('Fetching user data from Firestore...');
-        const userDocRef = doc(db as any, 'users', currentUser.uid);
+        const userDocRef = doc(db, 'users', currentUser.uid); // Removed 'as any'
         const userDoc = await getDoc(userDocRef);
-        const userData = userDoc.data();
+        const userData = userDoc.exists ? userDoc.data() : undefined; // Fixed userDoc.exists() to userDoc.exists
         console.log('User data from Firestore:', userData);
         if (userData?.role === 'institution') {
           console.log('User is an institution, signing out');
@@ -471,9 +486,9 @@ const App = () => {
       if (nextAppState === 'inactive' || nextAppState === 'background') {
         const currentUser: CustomUser | null = auth().currentUser; // Use CustomUser
         if (currentUser) {
-          const userDocRef = doc(db as any, 'users', currentUser.uid);
+          const userDocRef = doc(db, 'users', currentUser.uid); // Removed 'as any'
           const userDoc = await getDoc(userDocRef);
-          if (userDoc.data()?.role === 'institution') {
+          if (userDoc.exists && userDoc.data()?.role === 'institution') { // Fixed userDoc.exists() to userDoc.exists
             await signOut(auth());
             setUser(null);
           }

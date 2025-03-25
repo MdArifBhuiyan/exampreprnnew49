@@ -1,29 +1,31 @@
-
 {
   "expo": {
     "name": "ExamPrepRNNew",
-    "slug": "ExamPrepRNNew",
+    "slug": "examprnnew",
+    "scheme": "com.examprnnew.app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "plugins": ["expo-camera"],
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#121212"
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#121212"
-      }
+      "package": "com.examprnnew.app"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "extra": {
+      "API_KEY": "AIzaSyA1qoP2Wh02WB7Mv5G0Gn-8kQMRkA1D6Yc",
+      "AUTH_DOMAIN": "examprep-3e49d.firebaseapp.com",
+      "PROJECT_ID": "examprep-3e49d",
+      "STORAGE_BUCKET": "examprep-3e49d.appspot.com",
+      "MESSAGING_SENDER_ID": "669274248827",
+      "APP_ID": "1:669274248827:android:b28fc4928bcafef58f74de"
     }
   }
 }

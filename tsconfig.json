@@ -1,3 +1,4 @@
+// C:\Projects\ExamPrepRNNew\tsconfig.json
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
@@ -8,7 +9,15 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "typeRoots": [
+      "./node_modules/@types",
+      "./types"
+    ],
+    "types": [
+      "react-native",
+      "react-native-dotenv"
+    ]
   },
   "include": [
     "**/*.ts",

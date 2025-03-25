@@ -1,11 +1,11 @@
 // C:\Projects\ExamPrepRNNew\components\ProfileScreen.tsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
-import auth from '@react-native-firebase/auth';
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { db } from '../firebaseConfig';
-import { doc, getDoc, collection } from 'firebase/firestore';
+import { doc, getDoc } from '@react-native-firebase/firestore';
 
-// Define the UserData interface to match Firestore data (aligned with DatabaseServices.ts)
+// Define the UserData interface to match Firestore data
 interface UserData {
   name?: string;
   email?: string;
@@ -28,11 +28,12 @@ const ProfileScreen = () => {
       setLoading(true);
       setError(null);
       try {
-        const currentUser = auth().currentUser;
+        const currentUser = auth().currentUser as FirebaseAuthTypes.User | null;
         if (currentUser) {
-          const userDocRef = doc(collection(db, 'users'), currentUser.uid);
+          const userId = currentUser.uid;
+          const userDocRef = doc(db, 'users', userId); // Directly reference the document
           const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
+          if (userDoc.exists) { // Changed from userDoc.exists() to userDoc.exists
             const data = userDoc.data() as UserData;
             setUserData({
               name: data.name || 'Unknown',

@@ -1,21 +1,23 @@
-// C:\Projects\ExamPrepRNNew\components\QuizScreen.tsx
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { useRoute } from '@react-navigation/native';
-import { RootTabParamList } from '../types';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MCQ, LeaderboardEntry, initDatabase, fetchMCQs, saveScoreToLeaderboard, fetchLeaderboard } from '../services/DatabaseServices';
 
-type QuizScreenProps = BottomTabScreenProps<RootTabParamList, 'Quiz'>;
+// Define new navigation types
+type RootStackParamList = {
+  Welcome: undefined;
+  Dashboard: undefined;
+  Upload: undefined;
+  Quiz: { newQuestion?: string };
+  Profile: undefined;
+  // Add other screens as needed
+};
 
-// Define the shape of route params explicitly
-interface QuizRouteParams {
-  newQuestion?: string;
-}
+type QuizScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Quiz'>;
 
-const QuizScreen: React.FC<QuizScreenProps> = () => {
-  const route = useRoute<BottomTabScreenProps<RootTabParamList, 'Quiz'>['route']>();
-  const params = route.params as QuizRouteParams | undefined; // Explicitly type route.params
+const QuizScreen: React.FC = () => {
+  const navigation = useNavigation<QuizScreenNavigationProp>();
   const [mcqs, setMCQs] = useState<MCQ[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -35,7 +37,6 @@ const QuizScreen: React.FC<QuizScreenProps> = () => {
       setError(null);
       try {
         await initDatabase();
-        // Fetch a batch of questions in unlimited mode to reduce loading frequency
         const fetchSize = quizMode === 'fixed-size' ? examSize : quizMode === 'unlimited' ? 5 : 1;
         const data: MCQ[] = await fetchMCQs(fetchSize);
         if (data.length === 0) {
@@ -69,26 +70,11 @@ const QuizScreen: React.FC<QuizScreenProps> = () => {
     loadLeaderboard();
   }, []);
 
-  useEffect(() => {
-    const newQuestion = params?.newQuestion;
-    if (newQuestion) {
-      const newMCQ: MCQ = {
-        id: mcqs.length + 1,
-        question: newQuestion,
-        options: ['Paris', 'London', 'Berlin'],
-        answer: 'Paris',
-        explanation: '', // No pre-stored explanation as per requirement
-      };
-      setMCQs((prevMCQs) => [...prevMCQs, newMCQ]);
-    }
-  }, [params]);
-
   const handleAnswer = (answer: string) => {
     setSelectedAnswer(answer);
     if (answer === mcqs[currentQuestionIndex]?.answer) {
       setScore((prevScore) => prevScore + 1);
     }
-    // Show explanation after any answer (correct or incorrect)
     setShowExplanation(true);
   };
 
@@ -106,7 +92,6 @@ const QuizScreen: React.FC<QuizScreenProps> = () => {
         setLoading(true);
         setError(null);
         try {
-          // Fetch a batch of 5 questions in unlimited mode
           const data: MCQ[] = await fetchMCQs(5);
           if (data.length === 0) {
             setIsQuizFinished(true);
@@ -150,8 +135,8 @@ const QuizScreen: React.FC<QuizScreenProps> = () => {
     setScore(0);
     setIsQuizFinished(false);
     setShowExplanation(false);
-    setMCQs([]); // Clear MCQs to fetch new ones
-    setQuizMode(quizMode); // Trigger useEffect to fetch new questions
+    setMCQs([]);
+    setQuizMode(quizMode);
   };
 
   const handleExamSizeChange = (text: string) => {
@@ -254,6 +239,12 @@ const QuizScreen: React.FC<QuizScreenProps> = () => {
         ) : (
           <Text style={styles.noLeaderboardText}>No leaderboard entries yet.</Text>
         )}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Welcome')}
+          style={styles.backButton}
+        >
+          <Text style={styles.backButtonText}>Back to Welcome</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -367,6 +358,12 @@ const QuizScreen: React.FC<QuizScreenProps> = () => {
         </TouchableOpacity>
       </View>
       <Text style={styles.scoreText}>Score: {score}/{mcqs.length}</Text>
+      <TouchableOpacity
+        onPress={() => navigation.navigate('Welcome')}
+        style={styles.backButton}
+      >
+        <Text style={styles.backButtonText}>Back to Welcome</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -485,6 +482,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
+  },
+  backButton: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#555',
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
   },
 });
 

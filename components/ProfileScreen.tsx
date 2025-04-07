@@ -1,16 +1,14 @@
-// C:\Projects\ExamPrepRNNew\components\ProfileScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { View, Text, Image, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import auth from '@react-native-firebase/auth';
 import { db } from '../firebaseConfig';
 import { doc, getDoc } from '@react-native-firebase/firestore';
 
-// Define the UserData interface to match Firestore data
 interface UserData {
-  name?: string;
-  email?: string;
-  points?: number;
-  level?: number;
+  name: string;
+  email: string;
+  points: number;
+  level: number;
 }
 
 const ProfileScreen = () => {
@@ -28,24 +26,26 @@ const ProfileScreen = () => {
       setLoading(true);
       setError(null);
       try {
-        const currentUser = auth().currentUser as FirebaseAuthTypes.User | null;
-        if (currentUser) {
-          const userId = currentUser.uid;
-          const userDocRef = doc(db, 'users', userId); // Directly reference the document
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists) { // Changed from userDoc.exists() to userDoc.exists
-            const data = userDoc.data() as UserData;
-            setUserData({
-              name: data.name || 'Unknown',
-              email: currentUser.email || 'No email',
-              points: data.points || 0,
-              level: data.level || 1,
-            });
-          } else {
-            setError('User data not found.');
-          }
-        } else {
+        const currentUser = auth().currentUser;
+        if (!currentUser) {
           setError('No user is currently signed in.');
+          return;
+        }
+
+        const userId = currentUser.uid;
+        const userDocRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists) { // Fix: Use exists as a property, not a method
+          const data = userDoc.data() as { name?: string; points?: number; level?: number };
+          setUserData({
+            name: data.name ?? 'Unknown',
+            email: currentUser.email ?? 'No email',
+            points: data.points ?? 0,
+            level: data.level ?? 1,
+          });
+        } else {
+          setError('User data not found.');
         }
       } catch (err: any) {
         console.error('Error fetching user data:', err);
@@ -57,6 +57,15 @@ const ProfileScreen = () => {
 
     fetchUserData();
   }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await auth().signOut();
+    } catch (err: any) {
+      console.error('Error signing out:', err);
+      setError('Failed to sign out. Please try again.');
+    }
+  };
 
   if (loading) {
     return (
@@ -86,6 +95,9 @@ const ProfileScreen = () => {
       <Text style={styles.text}>Email: {userData.email}</Text>
       <Text style={styles.text}>Points: {userData.points}</Text>
       <Text style={styles.text}>Level: {userData.level}</Text>
+      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <Text style={styles.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -118,6 +130,16 @@ const styles = StyleSheet.create({
     color: '#f00',
     fontSize: 16,
     textAlign: 'center',
+  },
+  signOutButton: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#f00',
+    borderRadius: 5,
+  },
+  signOutText: {
+    color: '#fff',
+    fontSize: 16,
   },
 });
 

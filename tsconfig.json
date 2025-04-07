@@ -1,25 +1,36 @@
-// C:\Projects\ExamPrepRNNew\tsconfig.json
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true,
-    "baseUrl": ".",
     "moduleResolution": "node",
+    "module": "esnext",
     "jsx": "react-native",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "*": ["src/*"]
+    },
     "typeRoots": [
       "./node_modules/@types",
-      "./types"
+      "./src/types"
     ],
     "types": [
-      "react-native",
-      "react-native-dotenv"
-    ]
+      "react-native-dotenv",
+      "node"
+    ],
+    "lib": [
+      "es2015",
+      "es2017"
+    ],
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "target": "esnext"
   },
   "include": [
+    "src/**/*",
     "**/*.ts",
     "**/*.tsx"
   ],

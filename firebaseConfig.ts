@@ -1,6 +1,8 @@
-// C:\Projects\ExamPrepRNNew\firebaseConfig.ts
-import { initializeApp } from '@react-native-firebase/app';
+//firebaseConfig.ts
+import firebase from '@react-native-firebase/app';
 import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
+import messaging from '@react-native-firebase/messaging';
 import { API_KEY, AUTH_DOMAIN, PROJECT_ID, STORAGE_BUCKET, MESSAGING_SENDER_ID, APP_ID } from 'react-native-dotenv';
 
 const firebaseConfig = {
@@ -12,9 +14,13 @@ const firebaseConfig = {
   appId: APP_ID,
 };
 
-// Initialize Firebase app
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase app if not already initialized
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
-// Export the Firestore instance
+// Export the Firestore, Auth, and Messaging instances
 export const db = firestore();
-export default app;
+export const authInstance = auth();
+export const messagingInstance = messaging();
+export default firebase;

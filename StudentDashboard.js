@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, Alert } from 'react-native';
 import { getUserData, getQuizQuestions, updateQuizAnalytics } from './DatabaseService';
-import { createCheckoutSession, updateUserToPremium } from './PaymentService';
+import { createCheckoutSession, updateUserToPremium } from './services/PaymentService';
 import { LineChart } from 'react-native-chart-kit';
 
 const StudentDashboard = ({ userId }) => {

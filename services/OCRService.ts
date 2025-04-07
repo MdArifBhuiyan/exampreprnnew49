@@ -1,16 +1,29 @@
-// C:\Projects\ExamPrepRNNew\services\OCRService.ts
+// C:/Projects/ExamPrepRNNew/src/services/OCRService.ts
 import { MCQ } from './DatabaseServices';
+import Tesseract from 'tesseract.js';
+import pdfParse from 'pdf-parse';
 
 export const extractTextFromImage = async (imagePath: string): Promise<string> => {
-  // Placeholder implementation
-  // In a real app, this would use an OCR library to extract text from the image
-  return 'What is the capital of France?, Paris, London, Berlin, Madrid, Paris';
+  try {
+    const { data: { text } } = await Tesseract.recognize(imagePath, 'eng');
+    return text;
+  } catch (error) {
+    console.error('OCR Error:', error);
+    throw new Error('Failed to extract text from image');
+  }
 };
 
 export const extractTextFromPDF = async (pdfPath: string): Promise<string> => {
-  // Placeholder implementation
-  // In a real app, this would use a PDF parsing library to extract text
-  return 'What is the capital of Germany?, Paris, London, Berlin, Madrid, Berlin';
+  try {
+    const pdfBuffer = await fetch(pdfPath).then(res => res.arrayBuffer());
+    // Convert ArrayBuffer to Buffer for pdf-parse
+    const buffer = Buffer.from(pdfBuffer);
+    const data = await pdfParse(buffer);
+    return data.text;
+  } catch (error) {
+    console.error('PDF Text Extraction Error:', error);
+    throw new Error('Failed to extract text from PDF');
+  }
 };
 
 export const parseQuestionsFromText = (text: string): MCQ[] => {

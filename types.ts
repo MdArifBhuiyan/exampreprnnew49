@@ -1,22 +1,26 @@
-// C:\Projects\ExamPrepRNNew\types.ts
-export type RootTabParamList = {
-  Chat: undefined;
-  Quiz: { newQuestion?: string };
-  Groups: undefined;
+export type RootStackParamList = {
+  Welcome: undefined;
+  Dashboard: undefined;
   Upload: undefined;
-  History: undefined;
+  Quiz: { newQuestion?: string };
   Profile: undefined;
+  Login: undefined;
+  SignUp: undefined;
+  Onboarding: undefined;
+  Chat: undefined;
   Payment: undefined;
-  GroupChat: undefined;
   PersonalChat: undefined;
-  Scan: undefined;
+  GroupChat: undefined;
+  Groups: undefined;
+  History: undefined;
   StudentDashboard: { userId: string };
+  Drawer: undefined;
 };
 
-export type RootStackParamList = {
-  SignUp: undefined;
-  Login: undefined;
-  Onboarding: { role: string }; // Updated to allow role parameter
-  MainTabs: undefined;
-  Dashboard: { userId: string };
+export type RootDrawerParamList = {
+  Welcome: undefined;
+  Dashboard: undefined;
+  Upload: undefined;
+  Quiz: undefined;
+  Profile: undefined;
 };

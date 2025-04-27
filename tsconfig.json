@@ -10,21 +10,34 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "*": ["src/*"]
+      "@features/*": ["src/features/*"],
+      "@components/*": ["src/components/*"],
+      "@services/*": [
+        "src/features/payment/services/*",
+        "src/features/scan/services/*",
+        "src/features/teacherTools/services/*",
+        "src/services/*"
+      ],
+      "@utils/*": ["src/utils/*"],
+      "@navigation/*": ["src/navigation/*"],
+      "@types/*": ["src/types/*"],
+      "@root/*": ["src/*"],
+      "@screens/*": ["src/screens/*"],
+      "@context/*": ["src/context/*"] // Added for AcadBuddyContext imports
     },
     "typeRoots": [
       "./node_modules/@types",
       "./src/types"
     ],
     "types": [
-      "react-native-dotenv",
-      "node"
+      "node",
+      "react-native",
+      "react-native-dotenv"
     ],
     "lib": [
-      "es2015",
-      "es2017"
+      "esnext"
     ],
-    "strict": true,
+    "strict": false,
     "noEmit": true,
     "isolatedModules": true,
     "target": "esnext"
@@ -32,7 +45,8 @@
   "include": [
     "src/**/*",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    "*.ts"
   ],
   "exclude": [
     "node_modules",

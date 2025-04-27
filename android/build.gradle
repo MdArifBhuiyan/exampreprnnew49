@@ -5,17 +5,23 @@ buildscript {
         compileSdkVersion = 34
         targetSdkVersion = 34
         ndkVersion = "23.1.7779620"
+        kotlinVersion = "1.9.0"
     }
     repositories {
         google()
         mavenCentral()
-        maven { url "$rootDir/../node_modules/@react-native/gradle-plugin" }
+        maven { url "$rootDir/../node_modules/react-native/android" }
+        maven { url "https://maven.google.com" }
+        maven { url "https://jitpack.io" }
         maven { url "https://repo1.maven.org/maven2/" }
+        maven { url "https://repo.maven.apache.org/maven2/" }
+        maven { url "https://maven.pkg.jetbrains.space/public/p/react-native" }
     }
     dependencies {
         classpath("com.android.tools.build:gradle:8.5.2")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20")
-        classpath("com.facebook.react:react-native-gradle-plugin:0.73.4")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0")
+        classpath("com.facebook.react:react-native-gradle-plugin:0.74.7")
+        classpath("expo.modules:expo-dev-launcher-gradle-plugin:2.4.0")
     }
 }
 
@@ -24,13 +30,26 @@ allprojects {
         google()
         mavenCentral()
         maven { url "$rootDir/../node_modules/react-native/android" }
-        maven { url "$rootDir/../node_modules/@react-native/gradle-plugin" }
+        maven { url "$rootDir/../node_modules/jsc-android/dist" }
+        maven { url "https://maven.google.com" }
+        maven { url "https://jitpack.io" }
         maven { url "https://repo1.maven.org/maven2/" }
+        maven { url "https://repo.maven.apache.org/maven2/" }
+        maven { url "https://maven.pkg.jetbrains.space/public/p/react-native" }
     }
 }
 
-apply plugin: 'com.facebook.react'
-
-task wrapper(type: Wrapper) {
-    gradleVersion = "8.0"
+subprojects {
+    afterEvaluate {
+        android {
+            compileSdkVersion 34
+            buildToolsVersion "34.0.0"
+            defaultConfig {
+                minSdkVersion 21
+                targetSdkVersion 34
+            }
+        }
+    }
 }
+
+apply plugin: "com.facebook.react"
